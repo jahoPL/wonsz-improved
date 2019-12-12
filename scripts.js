@@ -81,32 +81,136 @@ function move() {
 	if(x >= board.width) gameOver();
 	if(y >= board.height) gameOver();
 
+	let dontRemoveTail = false;
+
+	objects.forEach( object => {
+		if(x === object.x && y === object.y){
+			// wonsz wszedł w obiekt
+			if(object.type==="apple"){
+				stats.points++;
+				object.exp = 0;
+				dontRemoveTail = true;
+			}
+			// wonsz wszedł w pułapke
+			if(object.type==="trap"){
+				gameOver();
+			}
+			if(object.type==="potion"){
+				snake.removeTail()
+				snake.removeTail()
+				snake.removeTail()
+				object.exp = 0
+			}
+		}
+	} )
+
 	/* dodanie głowy wonsza */
 	snake.addHead(x, y);
 
 
 	/* usunięcie ogona wonsza */
-	snake.removeTail();
+	if(!dontRemoveTail) snake.removeTail();
 }
 
 let gameState = 'not-started';
 const stats = {
-	speed: 3, // kwadraty pokonywane na sekundę
+	speed: 5, // kwadraty pokonywane na sekundę
 	points: 0 // zebrane punkty
 }
 
+const jakiśObiekt = {
+	type:"apple",
+	x: 10,
+	y: 10,
+	exp: 0
+}
+let objects = [];
+
+
+function renderObject(object){
+	const colors = {
+		apple: "green",
+		trap : "brown",
+		potion : "purple"
+	}
+	ctx.fillStyle = colors[object.type];
+	ctx.fillRect(	display.offsetX + object.x * display.cellSize,
+						display.offsetY + object.y * display.cellSize,
+						display.cellSize,
+						display.cellSize);
+}
+function renderObjects() {
+	objects.forEach(renderObject);
+}
+
+
+function rand(min, max) {
+	return Math.floor(Math.random() * (max-min + 1) + min);
+}
+
+const output = {
+	speed:document.querySelector("#speed"),
+	points:document.querySelector("#points"),
+	length:document.querySelector("#length")
+}
+
 let timeoutID = 0;
+function isThereAnObject(x,y){
+	for (const object of objects) {
+		if(object.x == x && object.y == y) return true
+		return false
+
+	}
+}
 function step() {
 	move()// przesunąć wonsza
 	board.render()// narysować planszę
+	renderObjects();
 	snake.render()// narysować wonsza
+
+	output.speed.innerText = stats.speed;
+	output.points.innerText = stats.points;
+	output.length.innerText = snake.sections.length;
+
+	objects = objects.filter( obiekt => obiekt.exp > Date.now() );
+
+	if (rand(1,10) === 10) {
+		let x = rand(0,board.width - 1);
+		let y = rand(0,board.height - 1);
+		objects.push({
+			type:"apple",
+			x,
+			y,
+			exp: Date.now() + rand(2000,10000)
+		})
+	}
+
+	if (rand(1,15) === 10) {
+		let x = rand(0,board.width - 1);
+		let y = rand(0,board.height - 1);
+		if(!isThereAnObject(x,y)) objects.push({
+			type:"trap",
+			x,
+			y,
+			exp: Date.now() + rand(5000,150000)
+		})
+	}
+	if (rand(1,50) === 10) {
+		let x = rand(0,board.width - 1);
+		let y = rand(0,board.height - 1);
+		if(!isThereAnObject(x,y)) objects.push({
+			type:"potion",
+			x,
+			y,
+			exp: Date.now() + rand(3000,50000)
+		})
+	}
 
 	// policzenie iedy wykonać kolejny krok
 	const nextStepTimeout = 1000 * (1 / stats.speed);
 	// zlecenie nastepnego kroku wonsza za pewien czas
 	if(gameState === "ongoing") timeoutID = setTimeout(step, nextStepTimeout)
 }
-
 
 
 
@@ -141,6 +245,10 @@ function gameOver() {
 	gameScreen.classList.add("disabled");
 	endScreen.classList.remove("disabled");
 	document.querySelector("#end-screen-points").innerText = `you lost with ${stats.points} points`;
+	const oldHighScore = Number(localStorage.getItem("snake-highscore"));
+	const newHighScore = Math.max(oldHighScore,stats.points)
+	localStorage.setItem("snake-highscore", newHighScore);
+	document.querySelector("#end-screen-highscore").innerText = `HighScore is ${newHighScore}`
 	wonszVideo.play();
 }
 
